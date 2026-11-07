@@ -1,9 +1,10 @@
 // Ayudas compartidas por las pruebas (no es una prueba en sí).
 import 'dart:convert';
 
-import 'package:dolores_hoy/datos/cliente_seguro.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+
+import '../lib/datos/cliente_seguro.dart';
 
 http.Response jsonOk(Object cuerpo, [int estado = 200]) => http.Response.bytes(
     utf8.encode(jsonEncode(cuerpo)), estado,

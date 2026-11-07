@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:dolores_hoy/datos/cliente_seguro.dart';
-import 'package:dolores_hoy/dominio/excepciones.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import '../lib/datos/cliente_seguro.dart';
+import '../lib/dominio/excepciones.dart';
 import 'ayudas.dart';
 
 void main() {

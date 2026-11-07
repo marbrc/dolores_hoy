@@ -54,3 +54,11 @@ secrets.json
 *.jks
 *.keystore
 key.properties
+
+# Secretos: JAMAS al repositorio
+secrets.json
+*.env
+.env*
+*.jks
+*.keystore
+key.properties
