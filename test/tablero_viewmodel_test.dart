@@ -30,8 +30,8 @@ void main() {
   });
 
   test('si UNA api falla, las otras cuatro siguen funcionando', () async {
-    final vm = crear((r) async =>
-        r.url.host == 'api.nasa.gov' ? jsonOk({}, 500) : servidorFalso(r));
+       final vm = crear((r) async =>
+        r.url.host == 'api.nasa.gov' ? jsonOk({}, 500) : await servidorFalso(r));
     await vm.cargarTodo();
     expect(vm.nasa.estado, Estado.error);
     expect(vm.nasa.error, contains('500'));
