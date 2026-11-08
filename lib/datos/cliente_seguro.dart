@@ -1,7 +1,8 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 import '../dominio/excepciones.dart';
@@ -19,7 +20,7 @@ class ClienteSeguro {
 
   static const _cabeceras = {
     'Accept': 'application/json',
-    'User-Agent': 'DoloresHoy/1.0 (curso Flutter UTNG)',
+    if (!kIsWeb) 'User-Agent': 'DoloresHoy/1.0 (curso Flutter UTNG)',
   };
 
   Future<dynamic> obtenerJson(Uri uri) async {

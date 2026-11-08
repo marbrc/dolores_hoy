@@ -1,6 +1,6 @@
-{
-    "name": "dolores_hoy",
-    "short_name": "dolores_hoy",
+﻿{
+    "name": "Dolores Hoy",
+    "short_name": "Dolores Hoy",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

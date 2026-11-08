@@ -89,17 +89,30 @@ class ServicioWikipedia {
     return convertir(() => ResumenWiki.desdeJson(json as Map<String, dynamic>));
   }
 }
-
 /// API 5 · NASA APOD (foto astronómica del día, CON clave)
 class ServicioNasa {
   final ClienteSeguro _c;
   final ConfigClaves _claves;
   ServicioNasa(this._c, this._claves);
 
-  Future<FotoAstronomica> fotoDelDia() async {
+  /// [hoy] se puede inyectar para probar sin depender del calendario real.
+  Future<FotoAstronomica> fotoDelDia({DateTime? hoy}) async {
     _claves.validar();
+    try {
+      return await _pedir(null);
+    } on ErrorServidorException catch (e) {
+      // 4xx (clave mala, límite) se muestran tal cual. Solo los fallos del
+      // servidor (5xx) reintentan con la foto de ayer, una sola vez.
+      if (e.codigo < 500) rethrow;
+      final ayer = (hoy ?? DateTime.now()).subtract(const Duration(days: 1));
+      return _pedir(ayer);
+    }
+  }
+
+  Future<FotoAstronomica> _pedir(DateTime? fecha) async {
     final json = await _c.obtenerJson(Uri.https('api.nasa.gov', '/planetary/apod', {
       'api_key': _claves.nasa,
+      if (fecha != null) 'date': fecha.toIso8601String().substring(0, 10),
     }));
     return convertir(() => FotoAstronomica.desdeJson(json as Map<String, dynamic>));
   }
