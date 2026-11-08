@@ -1,86 +1,64 @@
-import 'package:flutter/foundation.dart';
+import 'package:dolores_hoy/datos/config_claves.dart';
+import 'package:dolores_hoy/datos/servicios.dart';
+import 'package:dolores_hoy/presentacion/tablero_viewmodel.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 
-import '../datos/servicios.dart';
-import '../dominio/excepciones.dart';
-import '../dominio/modelos.dart';
+import 'ayudas.dart';
 
-enum Estado { cargando, listo, error }
-
-/// Estado de UNA tarjeta. Cada API tiene el suyo: si una falla, las demás viven.
-class Carga<T> {
-  final Estado estado;
-  final T? dato;
-  final String? error;
-  const Carga._(this.estado, this.dato, this.error);
-  const Carga.cargando() : this._(Estado.cargando, null, null);
-  const Carga.listo(T dato) : this._(Estado.listo, dato, null);
-  const Carga.fallo(String error) : this._(Estado.error, null, error);
+TableroViewModel crear(Future<http.Response> Function(http.Request) h) {
+  final c = seguro(h);
+  return TableroViewModel(
+    clima: ServicioClima(c),
+    cambio: ServicioCambio(c),
+    festivos: ServicioFestivos(c),
+    wikipedia: ServicioWikipedia(c),
+    nasa: ServicioNasa(c, const ConfigClaves(nasa: 'DEMO_KEY')),
+  );
 }
 
-class TableroViewModel extends ChangeNotifier {
-  final ServicioClima _clima;
-  final ServicioCambio _cambio;
-  final ServicioFestivos _festivos;
-  final ServicioWikipedia _wikipedia;
-  final ServicioNasa _nasa;
+void main() {
+  test('las 5 tarjetas cargan correctamente', () async {
+    final vm = crear(servidorFalso);
+    await vm.cargarTodo();
+    expect(vm.clima.estado, Estado.listo);
+    expect(vm.cambio.estado, Estado.listo);
+    expect(vm.festivos.estado, Estado.listo);
+    expect(vm.wiki.estado, Estado.listo);
+    expect(vm.nasa.estado, Estado.listo);
+    expect(vm.clima.dato!.temperatura, 24.3);
+  });
 
-  TableroViewModel({
-    required ServicioClima clima,
-    required ServicioCambio cambio,
-    required ServicioFestivos festivos,
-    required ServicioWikipedia wikipedia,
-    required ServicioNasa nasa,
-  })  : _clima = clima,
-        _cambio = cambio,
-        _festivos = festivos,
-        _wikipedia = wikipedia,
-        _nasa = nasa;
+  test('si UNA api falla, las otras cuatro siguen funcionando', () async {
+       final vm = crear((r) async =>
+        r.url.host == 'api.nasa.gov' ? jsonOk({}, 500) : await servidorFalso(r));
+    await vm.cargarTodo();
+    expect(vm.nasa.estado, Estado.error);
+    expect(vm.nasa.error, contains('500'));
+    expect(vm.clima.estado, Estado.listo);
+    expect(vm.cambio.estado, Estado.listo);
+    expect(vm.wiki.estado, Estado.listo);
+  });
 
-  Carga<Clima> clima = const Carga.cargando();
-  Carga<TipoCambio> cambio = const Carga.cargando();
-  Carga<List<Festivo>> festivos = const Carga.cargando();
-  Carga<ResumenWiki> wiki = const Carga.cargando();
-  Carga<FotoAstronomica> nasa = const Carga.cargando();
-
-  /// Último tema que sí funcionó: al recargar, Wikipedia vuelve a pedir este.
-  String _temaWiki = 'Dolores Hidalgo';
-
-  Future<void> cargarTodo() async {
-    clima = const Carga.cargando();
-    cambio = const Carga.cargando();
-    festivos = const Carga.cargando();
-    wiki = const Carga.cargando();
-    nasa = const Carga.cargando();
-    notifyListeners();
-
-    // Las 5 peticiones salen al mismo tiempo (en paralelo).
-    await Future.wait([
-      _cargar(() => _clima.actual(), (c) => clima = c),
-      _cargar(() => _cambio.deMxn(), (c) => cambio = c),
-      _cargar(() => _festivos.proximos(), (c) => festivos = c),
-      _cargar(() => _wikipedia.resumen(_temaWiki), (c) => wiki = c),
-      _cargar(() => _nasa.fotoDelDia(), (c) => nasa = c),
-    ]);
-  }
-
-  /// Busca otro tema SOLO en Wikipedia: las otras 4 tarjetas no se tocan.
-  /// El texto del usuario se valida dentro de ServicioWikipedia.
-  Future<void> buscarWiki(String tema) async {
-    wiki = const Carga.cargando();
-    notifyListeners();
-    await _cargar(() async {
-      final r = await _wikipedia.resumen(tema);
-      _temaWiki = tema.trim();
-      return r;
-    }, (c) => wiki = c);
-  }
-
-  Future<void> _cargar<T>(Future<T> Function() pedir, void Function(Carga<T>) poner) async {
-    try {
-      poner(Carga.listo(await pedir()));
-    } catch (e) {
-      poner(Carga.fallo(mensajeSeguro(e)));
+  test('sin internet, todas muestran error pero la app no se cae', () async {
+    final vm = crear((_) async => throw Exception('sin red'));
+    await vm.cargarTodo();
+    for (final e in [vm.clima.estado, vm.cambio.estado, vm.festivos.estado, vm.wiki.estado, vm.nasa.estado]) {
+      expect(e, Estado.error);
     }
-    notifyListeners();
-  }
+    // El mensaje es genérico: no revela el texto interno del error.
+    expect(vm.clima.error, isNot(contains('sin red')));
+  });
+
+  test('cargarTodo anuncia el estado cargando antes de terminar', () async {
+    final vm = crear(servidorFalso);
+    final vistos = <Estado>[];
+    vm.addListener(() => vistos.add(vm.clima.estado));
+    await vm.cargarTodo();
+    expect(vistos.first, Estado.cargando);
+    expect(vistos.last, Estado.listo);
+  });
+
+
+  
 }
