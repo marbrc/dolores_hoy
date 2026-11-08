@@ -62,3 +62,6 @@ secrets.json
 *.jks
 *.keystore
 key.properties
+
+
+(Get-Content .gitignore) | Where-Object { $_ -ne 'secrets.json.example' } | Set-Content .gitignores
